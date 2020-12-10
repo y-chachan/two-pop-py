@@ -355,6 +355,21 @@ def model_wrapper(ARGS, plot=False, save=False):
         def alpha_fct(x, locals_):
             return alpha * (x / x[0])**(gamma - 1)
 
+    if vfrag is None:
+        vfrag_in = ARGS.vfrag_in
+        vfrag_out = ARGS.vfrag_out
+        vfrag = np.ones_like(x)
+        vfrag[T>250.] = vfrag_in
+        vfrag[T < 150.] = vfrag_out
+        x_0 = np.where(T>250.)[0][-1]
+        x_1 = np.where(T<150.)[0][0]
+        intermediate = np.where((T > 150.) & (T < 250.))[0]
+        vfrag[(T > 150.) & (T < 250.)] = vfrag_in + (vfrag_out - vfrag_in) * (intermediate - x_0) / (x_1 - x_0)
+        from astropy.convolution import Gaussian1DKernel
+        from astropy.convolution import convolve
+        kernel = Gaussian1DKernel(10)
+        vfrag = convolve(vfrag, kernel, boundary='extend')
+    
     try:
         # this one could break if alpha_function works only in model.run
         om1 = np.sqrt(Grav * args.mstar / x[0]**3)
@@ -365,6 +380,10 @@ def model_wrapper(ARGS, plot=False, save=False):
     except:
         sigma_g = mdisk * (2. - gamma) / (2. * np.pi * rc**2) * (x / rc)**-gamma * np.exp(-(x / rc)**(2. - gamma))
         v_gas = np.zeros(sigma_g.shape)
+    
+    #MMEN initial_condition
+    #sigma_g = 1.3 * 1e5 * (x / (0.2 * AU))**(-1.6)
+    #v_gas = np.zeros(sigma_g.shape)
 
     # truncation
 

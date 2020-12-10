@@ -18,6 +18,8 @@ class args:
                 ['mdisk',   float],  # noqa
                 ['rhos',    float],  # noqa
                 ['vfrag',   float],  # noqa
+                ['vfrag_in',   float],  # noqa
+                ['vfrag_out',   float],  # noqa
                 ['a0',      float],  # noqa
                 ['gamma',   float],  # noqa
                 ['edrift',  float],  # noqa
@@ -46,7 +48,9 @@ class args:
     r1      = 3e3*_c.AU         # noqa
     mdisk   = 0.1*mstar         # noqa
     rhos    = 1.156             # noqa
-    vfrag   = 1000              # noqa
+    vfrag   = None              # noqa
+    vfrag_in= 1e2               # noqa
+    vfrag_out= 1e3              # noqa
     a0      = 1e-5              # noqa
     gamma   = 1.0               # noqa
     edrift  = 1.0               # noqa
@@ -96,7 +100,6 @@ class args:
             'r1':      [1/AU,         'AU'],            # noqa
             'mdisk':   [1/self.mstar, 'M_star'],        # noqa
             'rhos':    [1,            'g/cm^3'],        # noqa
-            'vfrag':   [1,            'cm/s'],          # noqa
             'a0':      [1,            'cm'],            # noqa
             'gamma':   [1,            ''],              # noqa
             'edrift':  [1,            ''],              # noqa
@@ -137,6 +140,17 @@ class args:
             s += 'alpha'.ljust(17) + ' = ' + 'function'.rjust(15)
         else:
             s += 'alpha'.ljust(17) + ' = ' + '{}'.format(self.alpha).rjust(15)
+
+        s += '\n'
+
+        # print vfrag
+        
+        if self.vfrag is None:
+            s += 'vfrag'.ljust(17) + ' = ' + 'None'.rjust(15)
+        elif hasattr(self.vfrag, '__call__'):
+            s += 'vfrag'.ljust(17) + ' = ' + 'function'.rjust(15)
+        else:
+            s += 'vfrag'.ljust(17) + ' = ' + '{}'.format(self.vfrag).rjust(15) + ' cm/s'
 
         s += '\n' + 48 * '-' + '\n'
         return s
