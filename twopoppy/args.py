@@ -18,8 +18,8 @@ class args:
                 ['mdisk',   float],  # noqa
                 ['rhos',    float],  # noqa
                 ['vfrag',   float],  # noqa
-                ['vfrag_in',   float],  # noqa
-                ['vfrag_out',   float],  # noqa
+                ['vfrag_in',float],  # noqa
+                ['vfrag_out',float],  # noqa
                 ['a0',      float],  # noqa
                 ['gamma',   float],  # noqa
                 ['edrift',  float],  # noqa
@@ -29,6 +29,12 @@ class args:
                 ['tempevol', bool],  # noqa
                 ['starevol', bool],  # noqa
                 ['dir',      str],  # noqa
+                ['alpha_gas',float],
+                ['gap_depth',float],
+                ['gap_width',float],
+                ['gap_loc',float],
+                ['M_seed',float],
+                ['M_iso',float]
             ]
 
     # set default values
@@ -61,6 +67,14 @@ class args:
     starevol = False  # noqa
     T        = None   # noqa
     dir      = 'data' # noqa
+    
+    alpha_gas = 1e-3
+    gap_depth = None
+    gap_width = None
+    gap_loc   = None
+    
+    M_seed    = None
+    M_iso     = None
 
     def __init__(self, **kwargs):
         """
@@ -80,7 +94,7 @@ class args:
         """
         String representation of arguments
         """
-        from .const import year, M_sun, R_sun, AU
+        from .const import year, M_sun, R_sun, AU, M_earth
         from numbers import Number
 
         s = ''
@@ -142,6 +156,27 @@ class args:
             s += 'alpha'.ljust(17) + ' = ' + '{}'.format(self.alpha).rjust(15)
 
         s += '\n'
+        
+        # print alpha_gas
+
+        if isinstance(self.alpha_gas, Number):
+            s += 'alpha_gas'.ljust(17) + ' = ' + '{}'.format(self.alpha_gas).rjust(15)
+        elif hasattr(self.alpha_gas, '__call__'):
+            s += 'alpha_gas'.ljust(17) + ' = ' + 'function'.rjust(15)
+        else:
+            s += 'alpha_gas'.ljust(17) + ' = ' + '{}'.format(self.alpha_gas).rjust(15)
+
+        s += '\n'
+        
+        if self.gap_loc is not None:
+            s += 'gap_loc'.ljust(17) + ' = ' + '{}'.format(self.gap_loc/AU).rjust(15) + ' AU\n'
+            s += 'gap_width'.ljust(17) + ' = ' + '{}'.format(self.gap_width/AU).rjust(15) + ' AU\n'
+            s += 'gap_depth'.ljust(17) + ' = ' + '{}'.format(self.gap_depth).rjust(15)
+            s += '\n'
+            
+        if self.M_iso is not None:
+            s += 'M_seed'.ljust(17) + ' = ' + '{}'.format(self.M_seed/M_earth).rjust(15) + ' earth massess\n'
+            s += 'M_iso'.ljust(17) + ' = ' + '{}'.format(self.M_iso/M_earth).rjust(15) + ' earth masses\n'
 
         # print vfrag
         

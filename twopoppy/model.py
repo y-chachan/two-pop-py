@@ -1,5 +1,6 @@
 def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
-        E_drift, E_stick=1., nogrowth=False, gasevol=True, alpha_gas=None):
+        E_drift, E_stick=1., nogrowth=False, gasevol=True, alpha_gas=None,
+        M_seed=None, M_iso=None):
     """
     This function evolves the two population model (all model settings
     are stored in velocity). It returns the important parameters of
@@ -115,7 +116,7 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
             return 200*(x/AU)**-1
     """
     from numpy import ones, zeros, Inf, maximum, minimum, sqrt, where
-    from .const import year, Grav, k_b, mu, m_p
+    from .const import year, Grav, k_b, mu, m_p, AU, M_earth, pi
     import sys
 
     CFL = 0.1
@@ -208,7 +209,20 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
     Tout[0, :]        = Tfunc(x, locals())          # noqa
     alphaout[0, :]    = alpha_func(x, locals())     # noqa
     alphagasout[0, :] = alpha_gas_func(x, locals()) # noqa
-
+    
+    #introducing the core
+    M_pl = zeros(n_t)
+    M_dot = zeros(n_t)
+    M_pl_tracker = 0.
+    m_dot = 0.
+    
+    if M_iso is not None:
+        from .pebble_acc import accretion_rate, isolation_mass_loc
+        #set location by pebble isolation mass and ignore migration for now
+        loc_seed = isolation_mass_loc(m_star, x, Tout[0, :], M_iso)
+        #print('Planet seed located at ' + '{:.2}'.format(loc_seed/AU) + ' au')
+        M_pl[0] = M_seed
+        M_pl_tracker = M_seed
     #
     # the loop
     #
@@ -245,6 +259,18 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
         D[-2:] = 0      # noqa
         v[-2:] = 0      # noqa
         #
+        
+        #calculate accretion rate and set up L in equation
+        #alpha or alpha_gas?
+        if M_iso is not None:
+            if M_pl_tracker >= M_iso:
+                m_dot = 0.
+                L = zeros(n_r)
+            else:
+                L, m_dot = accretion_rate(M_pl_tracker, m_star, loc_seed, x, u_in / x, sig_g, 
+                                        RHO_S, res, a_0, _T, _alpha)
+                
+                            
         # set up the equation
         #
         h = sig_g * x
@@ -271,6 +297,8 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
         #
         u_in = u_dust[:]
         t = t + dt
+        if M_iso is not None:
+            M_pl_tracker += -m_dot * dt
         #
         # update the gas
         #
@@ -331,6 +359,9 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
             vgas[snap_count, :]       = v_gas       # noqa
             Diff[snap_count, :]       = D           # noqa
             #
+            #store the planet mass
+            M_pl[snap_count]          = M_pl_tracker
+            M_dot[snap_count]         = m_dot
             # store the rest
             #
             v_0[snap_count, :]         = res[2]      # noqa
@@ -344,8 +375,8 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
             alphagasout[snap_count, :] = _alpha_gas  # noqa
 
     progress_bar(100., 'toy model running')
-
-    return time, solution_d, solution_g, v_bar, vgas, v_0, v_1, a_dr, a_fr, a_df, a_t, Tout, alphaout, alphagasout
+    
+    return time, solution_d, solution_g, v_bar, vgas, v_0, v_1, a_dr, a_fr, a_df, a_t, Tout, alphaout, alphagasout, M_pl, M_dot
 
 
 def get_velocity(t, sigma_d_t, x, sigma_g, v_gas, T, alpha, m_star, a_0, V_FRAG, RHO_S, E_drift, E_stick=1., nogrowth=False):
@@ -580,7 +611,7 @@ def impl_donorcell_adv_diff_delta(n_x, x, Diff, v, g, h, K, L, flim, u_in, dt, p
         the updated values of u(x) after timestep dt
 
     """
-    from numpy import zeros
+    from numpy import zeros, pi
     D05 = zeros(n_x)
     h05 = zeros(n_x)
     rhs = zeros(n_x)

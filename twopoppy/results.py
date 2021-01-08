@@ -21,6 +21,8 @@ class results:
     args         = None # noqa
     a            = None # noqa
     sig_sol      = None # noqa
+    M_pl         = None
+    M_dot        = None
 
     def write(self, dirname=None):
         """
@@ -52,10 +54,14 @@ class results:
         np.savetxt(dirname + os.sep + 'a_fr.dat',    self.a_fr)                     # noqa
         np.savetxt(dirname + os.sep + 'a_df.dat',    self.a_df)                     # noqa
         np.savetxt(dirname + os.sep + 'a_t.dat',     self.a_t)                      # noqa
-
+        
         if self.a is not None and self.sig_sol is not None:
             np.savetxt(dirname + os.sep + 'a.dat', self.a)
             np.savetxt(dirname + os.sep + 'sigma_d_a.dat', self.sig_sol)
+            
+        if self.M_pl is not None and self.M_dot is not None:
+            np.savetxt(dirname + os.sep + 'M_pl.dat', self.M_pl)
+            np.savetxt(dirname + os.sep + 'M_dot.dat', self.M_dot)
 
         self.args.write_args()
 
@@ -72,8 +78,8 @@ class results:
             else:
                 dirname = 'data'
 
-        print('\n' + 35 * '-')
-        print('reading results from {} ...'.format(dirname))
+        #print('\n' + 35 * '-')
+        #print('reading results from {} ...'.format(dirname))
         if not os.path.isdir(dirname):
             os.mkdir(dirname)
 
@@ -95,6 +101,9 @@ class results:
             self.a = np.loadtxt(dirname + os.sep + 'a.dat')
         if os.path.isfile(dirname + os.sep + 'sigma_d_a.dat'):
             self.sig_sol = np.loadtxt(dirname + os.sep + 'sigma_d_a.dat')
+        if os.path.isfile(dirname + os.sep + 'M_pl.dat'):
+            self.M_pl = np.loadtxt(dirname + os.sep + 'M_pl.dat')
+            self.M_dot = np.loadtxt(dirname + os.sep + 'M_dot.dat')
 
         self.args = args()
         self.args.dir = dirname

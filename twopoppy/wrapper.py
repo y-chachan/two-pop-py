@@ -311,6 +311,15 @@ def model_wrapper(ARGS, plot=False, save=False):
     tempevol = ARGS.tempevol    # noqa
     starevol = ARGS.starevol    # noqa
     T        = ARGS.T           # noqa
+    
+    alpha_gas= ARGS.alpha_gas   # noqa
+    gap_depth= ARGS.gap_depth   #noqa
+    gap_width= ARGS.gap_width   #noqa   #make sure in right units
+    gap_loc  = ARGS.gap_loc     #noqa   #mase sure in right units
+    
+    M_seed   = ARGS.M_seed   #noqa   #make sure in right units
+    M_iso    = ARGS.M_iso     #noqa   #mase sure in right units    
+        
     #
     # print setup
     #
@@ -326,8 +335,15 @@ def model_wrapper(ARGS, plot=False, save=False):
     # create grids and temperature
     #
     nri = nr + 1
-    xi = np.logspace(np.log10(r0), np.log10(r1), nri)
-    x = 0.5 * (xi[1:] + xi[:-1])
+    if gap_loc is None:
+        xi = np.logspace(np.log10(r0), np.log10(r1), nri)
+        x = 0.5 * (xi[1:] + xi[:-1])
+    else:
+        xi = np.logspace(np.log10(r0), np.log10(r1), nri-100)
+        xi = np.append(xi, np.logspace(np.log10(gap_loc - 5*gap_width), np.log10(gap_loc + 5*gap_width), 100))
+        xi = np.sort(xi)
+        x = 0.5 * (xi[1:] + xi[:-1])
+    
     timesteps = np.logspace(4, np.log10(tmax / year), nt) * year
     if starevol:
         raise ValueError('stellar evolution not implemented')
@@ -354,6 +370,30 @@ def model_wrapper(ARGS, plot=False, save=False):
     elif isinstance(alpha, Number):
         def alpha_fct(x, locals_):
             return alpha * (x / x[0])**(gamma - 1)
+            
+    #set alpha_gas  
+    #if alpha_gas is None:
+    #    alpha_gas = alpha      
+    if isinstance(alpha_gas, (list, tuple, np.ndarray)):
+        def alpha_gas_fct(x, locals_):
+            return alpha_gas
+        print('alpha_gas given as array, ignoring gamma index when setting alpha')
+    elif hasattr(alpha_gas, '__call__'):
+        alpha_gas_fct = alpha_gas
+    elif isinstance(alpha_gas, Number):
+        if gap_loc is None:
+            def alpha_gas_fct(x, locals_):
+                return alpha_gas * (x / x[0])**(gamma - 1)    
+        else:
+            def alpha_gas_fct(x, locals_):
+                return alpha_gas * (x / x[0])**(gamma - 1) / np.exp(-gap_depth * np.exp(-(x - gap_loc)**2/(2 * gap_width**2)))                
+
+    if M_iso is None and M_seed is not None:
+        print('Both M_seed and M_iso need to be given. Terminating run.')
+        return
+    elif M_iso is not None and M_seed is None:
+        print('Both M_seed and M_iso need to be given. Terminating run.')
+        return
 
     if vfrag is None:
         vfrag_in = ARGS.vfrag_in
@@ -374,9 +414,9 @@ def model_wrapper(ARGS, plot=False, save=False):
         # this one could break if alpha_function works only in model.run
         om1 = np.sqrt(Grav * args.mstar / x[0]**3)
         cs1 = np.sqrt(k_b * T[0] / mu / m_p)
-        nu1 = alpha_fct(x, locals()) * cs1**2 / om1
+        nu1 = alpha_gas_fct(x, locals()) * cs1**2 / om1
         sigma_g, _ = lbp_solution(x, gamma, nu1, mstar, mdisk, rc)
-        v_gas = -3.0 * alpha_fct(x, locals()) * k_b * T / mu / m_p / 2. / np.sqrt(Grav * mstar / x) * (1. + 7. / 4.)
+        v_gas = -3.0 * alpha_gas_fct(x, locals()) * k_b * T / mu / m_p / 2. / np.sqrt(Grav * mstar / x) * (1. + 7. / 4.)
     except:
         sigma_g = mdisk * (2. - gamma) / (2. * np.pi * rc**2) * (x / rc)**-gamma * np.exp(-(x / rc)**(2. - gamma))
         v_gas = np.zeros(sigma_g.shape)
@@ -397,8 +437,9 @@ def model_wrapper(ARGS, plot=False, save=False):
 
     # call the model
 
-    TI, SOLD, SOLG, VD, VG, v_0, v_1, a_dr, a_fr, a_df, a_t, Tout, alphaout, _ = model.run(
-        x, a0, timesteps, sigma_g, sigma_d, v_gas, T, alpha_fct, mstar, vfrag, rhos, edrift, E_stick=estick, nogrowth=False, gasevol=gasevol)
+    TI, SOLD, SOLG, VD, VG, v_0, v_1, a_dr, a_fr, a_df, a_t, Tout, alphaout, alphagasout, M_pl, M_dot = model.run(
+        x, a0, timesteps, sigma_g, sigma_d, v_gas, T, alpha_fct, mstar, vfrag, rhos, edrift, E_stick=estick, nogrowth=False, gasevol=gasevol,
+        alpha_gas=alpha_gas_fct, M_seed=M_seed, M_iso=M_iso)
 
     #
     # ================================
@@ -440,6 +481,11 @@ def model_wrapper(ARGS, plot=False, save=False):
         res.alpha = alphaout
     else:
         res.alpha = alpha
+        
+    if hasattr(alpha_gas, '__call__'):
+        res.alpha_gas = alphagasout
+    else:
+        res.alpha_gas = alpha_gas    
 
     res.timesteps = timesteps
     res.v_gas     = VG      # noqa
@@ -454,6 +500,10 @@ def model_wrapper(ARGS, plot=False, save=False):
     res.a         = a       # noqa
 
     res.sig_sol = sig_sol
+    
+    if M_iso is not None:
+        res.M_pl = M_pl
+        res.M_dot = M_dot
 
     if save:
         res.write()
