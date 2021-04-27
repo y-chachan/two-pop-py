@@ -115,7 +115,7 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
         def T(x,locals_):
             return 200*(x/AU)**-1
     """
-    from numpy import ones, zeros, Inf, maximum, minimum, sqrt, where
+    from numpy import ones, zeros, Inf, maximum, minimum, sqrt, where, array
     from .const import year, Grav, k_b, mu, m_p, AU, M_earth, pi
     import sys
 
@@ -211,19 +211,26 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
     alphagasout[0, :] = alpha_gas_func(x, locals()) # noqa
     
     #introducing the core
-    M_pl = zeros(n_t)
-    M_dot = zeros(n_t)
+    M_pl = zeros((n_t,2))
+    M_dot = zeros((n_t,2))
     M_pl_tracker = 0.
     m_dot = 0.
+    SE_M_tracker = 0.
+    SE_m_dot = 0.
+    SE_mass = 5 * M_earth
     t_begin = 1e4 * year
     
     if M_iso is not None:
         from .pebble_acc import accretion_rate, isolation_mass_loc
         #set location by pebble isolation mass and ignore migration for now
         loc_seed = isolation_mass_loc(m_star, x, Tout[0, :], M_iso)
+        SE_loc = isolation_mass_loc(m_star, x, Tout[0, :], SE_mass)
+
         #print('Planet seed located at ' + '{:.2}'.format(loc_seed/AU) + ' au')
-        M_pl[0] = M_seed
+        M_pl[0, 0] = M_seed
+        M_pl[0, 1] = M_seed
         M_pl_tracker = M_seed
+        SE_M_tracker = M_seed
     #
     # the loop
     #
@@ -266,15 +273,30 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
         if M_iso is not None:
             if t < t_begin:
                 m_dot = 0.
+                SE_m_dot = 0.
                 L = zeros(n_r)
             else:    
-                if M_pl_tracker >= M_iso:
+                if (M_pl_tracker >= M_iso) and (SE_M_tracker >= SE_mass):
                     m_dot = 0.
+                    SE_m_dot = 0.
                     L = zeros(n_r)
-                else:
+                    
+                elif (M_pl_tracker < M_iso) and (SE_M_tracker >= SE_mass):
+                    SE_m_dot = 0.
                     L, m_dot = accretion_rate(M_pl_tracker, m_star, loc_seed, x, u_in / x, sig_g, 
                                             RHO_S, res, a_0, _T, _alpha)
-                                    
+
+                elif (M_pl_tracker >= M_iso) and (SE_M_tracker < SE_mass):
+                    m_dot = 0.
+                    L, SE_m_dot = accretion_rate(SE_M_tracker, m_star, SE_loc, x, u_in / x, sig_g, 
+                                            RHO_S, res, a_0, _T, _alpha)
+
+                else:
+                    L1, m_dot = accretion_rate(M_pl_tracker, m_star, loc_seed, x, u_in / x, sig_g, 
+                                            RHO_S, res, a_0, _T, _alpha)
+                    L2, SE_m_dot = accretion_rate(SE_M_tracker, m_star, SE_loc, x, u_in / x, sig_g, 
+                                            RHO_S, res, a_0, _T, _alpha) 
+                    L = (L1 != 0.) * L1 + (L2 != 0.) * L2  
         # set up the equation
         #
         h = sig_g * x
@@ -303,6 +325,7 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
         t = t + dt
         if M_iso is not None:
             M_pl_tracker += -m_dot * dt
+            SE_M_tracker += -SE_m_dot * dt
         #
         # update the gas
         #
@@ -364,8 +387,8 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
             Diff[snap_count, :]       = D           # noqa
             #
             #store the planet mass
-            M_pl[snap_count]          = M_pl_tracker
-            M_dot[snap_count]         = m_dot
+            M_pl[snap_count]          = [M_pl_tracker, SE_M_tracker]
+            M_dot[snap_count]         = [m_dot, SE_m_dot]
             # store the rest
             #
             v_0[snap_count, :]         = res[2]      # noqa
