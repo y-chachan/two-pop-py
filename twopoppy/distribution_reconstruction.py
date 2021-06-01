@@ -218,6 +218,14 @@ def reconstruct_size_distribution(r, a, t, sig_g, sig_d, alpha, rho_s, T, M_star
     a_dr = estick * 0.55 * 2 / pi * sig_d / rho_s * r**2. * \
         (Grav * M_star / r**3) / (abs(gamma) * cs**2)
     #
+    # drift induced fragmentation size
+    #
+    N = 0.5
+    inv_St_df = abs(gamma) * cs**2 * (1-N) / (v_f * vk)
+    a_df =  sig_g / (pi * rho_s) * (inv_St_df - np.sqrt(inv_St_df**2 - 4.))
+    a_df[np.isnan(a_df)] = np.inf
+    #here we have imposed the same upper limit of St = 0.5 as done above
+    #
     # time dependent growth
     #
     t_grow = sig_g / (estick * om * sig_d)
@@ -227,8 +235,11 @@ def reconstruct_size_distribution(r, a, t, sig_g, sig_d, alpha, rho_s, T, M_star
     #
     # the minimum of all of those
     #
-    a_max = np.minimum(np.minimum(a_fr, a_dr), a_grow)
+    a_max = np.minimum(a_fr, a_dr)
+    a_max = np.minimum(a_max, np.maximum(a_df, a_0))
+    a_max = np.minimum(a_max, a_grow)
     if a_max.max() > a[-1]:
+        print(a_max.max(), a[-1])
         raise ValueError(
             'Maximum grain size larger than size grid. Increase upper end of size grid.')
     #
@@ -249,7 +260,7 @@ def reconstruct_size_distribution(r, a, t, sig_g, sig_d, alpha, rho_s, T, M_star
     #
     # Radial loop: to fill in all fragmentation regions
     #
-    frag_mask = a_max == a_fr
+    frag_mask = ((a_max == a_fr) | (a_max == a_df))
     frag_idx = np.where(frag_mask)[0]
     #
     # select which cells to avoid
@@ -426,7 +437,7 @@ def reconstruct_size_distribution(r, a, t, sig_g, sig_d, alpha, rho_s, T, M_star
     # extrapolate empty small-grain bins in the drift limit
     #
     for ir in range(n_r):
-        if a_max[ir] == a_fr[ir]:
+        if a_max[ir] == a_fr[ir] or a_max[ir] == a_df[ir]:
             continue
         #
         # if all bins are empty, fill in smallest sizes
