@@ -1,6 +1,6 @@
 def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
         E_drift, E_stick=1., nogrowth=False, gasevol=True, alpha_gas=None,
-        M_seed=None, M_iso=None):
+        M_seed=None, t_seed = None, M_iso=None):
     """
     This function evolves the two population model (all model settings
     are stored in velocity). It returns the important parameters of
@@ -215,7 +215,6 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
     M_dot = zeros(n_t)
     M_pl_tracker = 0.
     m_dot = 0.
-    t_begin = 1e4 * year
     
     if M_iso is not None:
         from .pebble_acc import accretion_rate, isolation_mass_loc
@@ -264,7 +263,7 @@ def run(x, a_0, time, sig_g, sig_d, v_gas, T, alpha, m_star, V_FRAG, RHO_S,
         #calculate accretion rate and set up L in equation
         #alpha or alpha_gas?
         if M_iso is not None:
-            if t < t_begin:
+            if t < t_seed:
                 m_dot = 0.
                 L = zeros(n_r)
             else:    

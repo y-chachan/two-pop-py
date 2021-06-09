@@ -34,6 +34,7 @@ class args:
                 ['gap_width',float],
                 ['gap_loc',float],
                 ['M_seed',float],
+                ['t_seed',float],
                 ['M_iso',float]
             ]
 
@@ -74,6 +75,7 @@ class args:
     gap_loc   = None
     
     M_seed    = None
+    t_seed    = None
     M_iso     = None
 
     def __init__(self, **kwargs):
@@ -176,6 +178,7 @@ class args:
             
         if self.M_iso is not None:
             s += 'M_seed'.ljust(17) + ' = ' + '{}'.format(self.M_seed/M_earth).rjust(15) + ' earth massess\n'
+            s += 't_seed'.ljust(17) + ' = ' + '{}'.format(self.t_seed/year).rjust(15) + ' yrs\n'
             s += 'M_iso'.ljust(17) + ' = ' + '{}'.format(self.M_iso/M_earth).rjust(15) + ' earth masses\n'
 
         # print vfrag

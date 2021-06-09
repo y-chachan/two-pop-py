@@ -317,8 +317,9 @@ def model_wrapper(ARGS, plot=False, save=False):
     gap_width= ARGS.gap_width   #noqa   #make sure in right units
     gap_loc  = ARGS.gap_loc     #noqa   #mase sure in right units
     
-    M_seed   = ARGS.M_seed   #noqa   #make sure in right units
-    M_iso    = ARGS.M_iso     #noqa   #mase sure in right units    
+    M_seed   = ARGS.M_seed      #noqa   #make sure in right units
+    t_seed   = ARGS.t_seed      #noqa   #make sure in right units
+    M_iso    = ARGS.M_iso       #noqa   #mase sure in right units    
         
     #
     # print setup
@@ -388,11 +389,8 @@ def model_wrapper(ARGS, plot=False, save=False):
             def alpha_gas_fct(x, locals_):
                 return alpha_gas * (x / x[0])**(gamma - 1) / np.exp(-gap_depth * np.exp(-(x - gap_loc)**2/(2 * gap_width**2)))                
 
-    if M_iso is None and M_seed is not None:
-        print('Both M_seed and M_iso need to be given. Terminating run.')
-        return
-    elif M_iso is not None and M_seed is None:
-        print('Both M_seed and M_iso need to be given. Terminating run.')
+    if any([M_iso, M_seed, t_seed]) and all([M_iso, M_seed, t_seed]) is False:        
+        print('All the variables M_seed, t_seed, and M_iso need to be given. Terminating run.')
         return
 
     if vfrag is None:
@@ -439,7 +437,7 @@ def model_wrapper(ARGS, plot=False, save=False):
 
     TI, SOLD, SOLG, VD, VG, v_0, v_1, a_dr, a_fr, a_df, a_t, Tout, alphaout, alphagasout, M_pl, M_dot = model.run(
         x, a0, timesteps, sigma_g, sigma_d, v_gas, T, alpha_fct, mstar, vfrag, rhos, edrift, E_stick=estick, nogrowth=False, gasevol=gasevol,
-        alpha_gas=alpha_gas_fct, M_seed=M_seed, M_iso=M_iso)
+        alpha_gas=alpha_gas_fct, M_seed=M_seed, t_seed = t_seed, M_iso=M_iso)
 
     #
     # ================================
